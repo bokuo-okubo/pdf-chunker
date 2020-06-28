@@ -3,8 +3,8 @@ const argv = require("yargs")
   .usage("Usage: \n   $0 <targetFile> [options] | $0 -i <sourceDir> -o <outDir>")
   .example("$0 foo.pdf", "chunk pdf file and stdout")
   .example(
-    "$0 --in ./{path_to_input_dir} -o ./{path_to_output_dir}",
-    "chunk pdf file and write to 'out.pdf'"
+    "$0 -i ./{path_to_input_dir} -o ./{path_to_output_dir}",
+    "batch convert in input_dir"
   )
 
   .alias("o", "out")
