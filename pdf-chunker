@@ -1,11 +1,17 @@
 #!/usr/bin/env node
 const argv = require("yargs")
-  .usage("Usage: $0 <targetFile> [options]")
+  .usage("Usage: \n   $0 <targetFile> [options] | $0 -i <sourceDir> -o <outDir>")
   .example("$0 foo.pdf", "chunk pdf file and stdout")
-  .example("$0 foo.pdf -o out.pdf", "chunk pdf file and write to 'out.pdf'")
+  .example(
+    "$0 --in ./{path_to_input_dir} -o ./{path_to_output_dir}",
+    "chunk pdf file and write to 'out.pdf'"
+  )
 
   .alias("o", "out")
-  .describe("o", "Out file path")
+  .describe("o", "Out dir")
+
+  .alias("i", "in")
+  .describe("i", "input dir")
 
   .alias("z", "zoom")
   .describe("z", "Zoom scale (default is 1)")
@@ -17,19 +23,22 @@ const argv = require("yargs")
   .alias("h", "help").argv;
 
 const fs = require("fs");
+const path = require("path");
 const { Readable } = require("stream");
 const createChunkedPdf = require("./src/createChunkedPdf");
 
 const parseArgv = () => {
-  if (!argv._[0]) {
-    console.error("File was not set");
-    process.exit(1);
-  }
   const sourcePdfPath = argv._[0];
 
+  if (!sourcePdfPath && (!argv.in || !argv.out)) {
+    throw Error('You must set -i and -o options when you use multi file mode.')
+  }
+
   return {
+    mode: argv._[0] ? "single" : "multi",
     sourcePdfPath,
-    outFilePath: argv.out,
+    sourceDir: argv.in,
+    outDir: argv.out,
     zoomScale: argv.zoom,
     chunkSize: argv.chunk,
   };
@@ -39,11 +48,20 @@ const setupParams = () => {
   const DEFAULT_ZOOM_SCALE = 1;
   const DEFAULT_CHUNKSIZE = 2;
 
-  const { sourcePdfPath, outFilePath, zoomScale, chunkSize } = parseArgv();
+  const {
+    mode,
+    sourcePdfPath,
+    sourceDir,
+    outDir,
+    zoomScale,
+    chunkSize,
+  } = parseArgv();
 
   return {
+    mode,
     sourcePdfPath,
-    outFilePath,
+    sourceDir,
+    outDir,
     zoomScale: zoomScale ? zoomScale : DEFAULT_ZOOM_SCALE,
     chunkSize: chunkSize ? chunkSize : DEFAULT_CHUNKSIZE,
   };
@@ -52,22 +70,45 @@ const setupParams = () => {
 // ---
 
 const main = async () => {
-  const { sourcePdfPath, outFilePath, zoomScale, chunkSize } = setupParams();
-
-  const existingPdfBytes = fs.readFileSync(sourcePdfPath);
-  const outPdfBytes = await createChunkedPdf(
-    existingPdfBytes,
+  const {
+    mode,
+    sourcePdfPath,
+    sourceDir,
+    outDir,
+    zoomScale,
     chunkSize,
-    zoomScale
-  );
+  } = setupParams();
 
-  if (outFilePath) {
-    fs.writeFileSync(outFilePath, outPdfBytes);
-  } else {
+  if (mode === "single") {
+    const existingPdfBytes = fs.readFileSync(sourcePdfPath);
+    const outPdfBytes = await createChunkedPdf(
+      existingPdfBytes,
+      chunkSize,
+      zoomScale
+    );
+
     const readable = new Readable();
     readable._read = () => {};
     readable.push(outPdfBytes);
     readable.pipe(process.stdout);
+  } else if (mode === "multi") {
+    const directoryPath = path.join(__dirname, sourceDir);
+    const filenames = fs.readdirSync(directoryPath).filter(f => path.extname(f) === '.pdf')
+
+    for await (const filename of filenames) {
+
+      const existingPdfBytes = fs.readFileSync(path.join(directoryPath, filename));
+
+      const outPdfBytes = await createChunkedPdf(
+        existingPdfBytes,
+        chunkSize,
+        zoomScale
+      );
+      if (!fs.existsSync(outDir)) {
+        fs.mkdirSync(path.join(__dirname, outDir))
+      }
+      fs.writeFileSync(path.join(__dirname, outDir, filename), outPdfBytes)
+    }
   }
 };
 

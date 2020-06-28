@@ -29,8 +29,14 @@ yarn # install node_modules
 
 - [docker](https://hub.docker.com/r/bko712/pdf-chunker)
 
-```console
-docker pull bko712/pdf-chunker
+  - single
+  ```console
+  docker pull bko712/pdf-chunker
 
-docker run --rm -v"$(pwd)/test_files:/works/test_files" bko712/pdf-chunker ./test_files/example.pdf > ./test_files/example_out_docker.pdf
-```
+  docker run --rm -v"$(pwd)/test_files:/works/test_files" bko712/pdf-chunker ./test_files/example.pdf > ./test_files/example_out_docker.pdf
+  ```
+
+  - multi
+  ```
+  docker run --rm -v "$(pwd):/works/files" bko712/pdf-chunker -i './files/TS2' -o './files/TS2_edited'
+  ```
