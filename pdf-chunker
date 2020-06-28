@@ -1,0 +1,74 @@
+#!/usr/bin/env node
+const argv = require("yargs")
+  .usage("Usage: $0 <targetFile> [options]")
+  .example("$0 foo.pdf", "chunk pdf file and stdout")
+  .example("$0 foo.pdf -o out.pdf", "chunk pdf file and write to 'out.pdf'")
+
+  .alias("o", "out")
+  .describe("o", "Out file path")
+
+  .alias("z", "zoom")
+  .describe("z", "Zoom scale (default is 1)")
+
+  .alias("c", "chunk")
+  .describe("c", "Chunk size (default is 2)")
+
+  .help("h")
+  .alias("h", "help").argv;
+
+const fs = require("fs");
+const { Readable } = require("stream");
+const createChunkedPdf = require("./src/createChunkedPdf");
+
+const parseArgv = () => {
+  if (!argv._[0]) {
+    console.error("File was not set");
+    process.exit(1);
+  }
+  const sourcePdfPath = argv._[0];
+
+  return {
+    sourcePdfPath,
+    outFilePath: argv.out,
+    zoomScale: argv.zoom,
+    chunkSize: argv.chunk,
+  };
+};
+
+const setupParams = () => {
+  const DEFAULT_ZOOM_SCALE = 1;
+  const DEFAULT_CHUNKSIZE = 2;
+
+  const { sourcePdfPath, outFilePath, zoomScale, chunkSize } = parseArgv();
+
+  return {
+    sourcePdfPath,
+    outFilePath,
+    zoomScale: zoomScale ? zoomScale : DEFAULT_ZOOM_SCALE,
+    chunkSize: chunkSize ? chunkSize : DEFAULT_CHUNKSIZE,
+  };
+};
+
+// ---
+
+const main = async () => {
+  const { sourcePdfPath, outFilePath, zoomScale, chunkSize } = setupParams();
+
+  const existingPdfBytes = fs.readFileSync(sourcePdfPath);
+  const outPdfBytes = await createChunkedPdf(
+    existingPdfBytes,
+    chunkSize,
+    zoomScale
+  );
+
+  if (outFilePath) {
+    fs.writeFileSync(outFilePath, outPdfBytes);
+  } else {
+    const readable = new Readable();
+    readable._read = () => {};
+    readable.push(outPdfBytes);
+    readable.pipe(process.stdout);
+  }
+};
+
+main().catch(console.log);
