@@ -19,8 +19,18 @@ Examples:
 
 ## test usage
 
+- node
+
+```console
+yarn # install node_modules
+
 ./pdf-chunker ./test_files/example.pdf > ./test_files/example_out.pdf
+```
 
-- docker
+- [docker](https://hub.docker.com/r/bko712/pdf-chunker)
 
-docker run --rm -v"$(pwd)/test_files:/works/test_files" pdf-chunker ./test_files/example.pdf > ./test_files/example_out_docker.pdf
+```console
+docker pull bko712/pdf-chunker
+
+docker run --rm -v"$(pwd)/test_files:/works/test_files" bko712/pdf-chunker ./test_files/example.pdf > ./test_files/example_out_docker.pdf
+```
